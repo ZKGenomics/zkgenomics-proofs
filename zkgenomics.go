@@ -5,6 +5,18 @@ import (
 	"github.com/zkgenomics/zkgenomics-proofs/traits"
 )
 
+// Re-export important types for convenience
+type ProofData = proofs.ProofData
+type VerificationResult = proofs.VerificationResult
+type ProofResult = proofs.ProofResult
+
+// Re-export constants
+const (
+	ProofSuccess ProofResult = proofs.ProofSuccess
+	ProofFail    ProofResult = proofs.ProofFail
+	ProofUnknown ProofResult = proofs.ProofUnknown
+)
+
 // ProofType represents the type of genomic proof to generate
 type ProofType string
 
@@ -23,8 +35,8 @@ func NewProofGenerator() *ProofGenerator {
 	return &ProofGenerator{}
 }
 
-// GenerateProof generates a proof of the specified type
-func (pg *ProofGenerator) GenerateProof(proofType ProofType, vcfPath, provingKeyPath, outputPath string) error {
+// GenerateProof generates a proof of the specified type and returns the proof data
+func (pg *ProofGenerator) GenerateProof(proofType ProofType, vcfPath, provingKeyPath, outputPath string) (*ProofData, error) {
 	var proof proofs.Proof
 
 	switch proofType {
@@ -37,14 +49,14 @@ func (pg *ProofGenerator) GenerateProof(proofType ProofType, vcfPath, provingKey
 	case HERC2ProofType:
 		proof = &proofs.HERC2Proof{}
 	default:
-		return &UnsupportedProofTypeError{Type: string(proofType)}
+		return nil, &UnsupportedProofTypeError{Type: string(proofType)}
 	}
 
 	return proof.Generate(vcfPath, provingKeyPath, outputPath)
 }
 
-// VerifyProof verifies a proof of the specified type
-func (pg *ProofGenerator) VerifyProof(proofType ProofType, verifyingKeyPath, proofPath string) (bool, error) {
+// VerifyProof verifies a proof of the specified type and returns the verification result
+func (pg *ProofGenerator) VerifyProof(proofType ProofType, verifyingKeyPath, proofPath string) (*VerificationResult, error) {
 	var proof proofs.Proof
 
 	switch proofType {
@@ -57,7 +69,7 @@ func (pg *ProofGenerator) VerifyProof(proofType ProofType, verifyingKeyPath, pro
 	case HERC2ProofType:
 		proof = &proofs.HERC2Proof{}
 	default:
-		return false, &UnsupportedProofTypeError{Type: string(proofType)}
+		return nil, &UnsupportedProofTypeError{Type: string(proofType)}
 	}
 
 	return proof.Verify(verifyingKeyPath, proofPath)

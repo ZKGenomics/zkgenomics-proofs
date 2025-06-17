@@ -26,9 +26,12 @@ func TestBRCA1Proof_Generate(t *testing.T) {
 	tmpFile.Close()
 
 	proof := &BRCA1Proof{}
-	err = proof.Generate(tmpFile.Name(), "", "")
+	proofData, err := proof.Generate(tmpFile.Name(), "", "")
 	if err != nil {
 		t.Errorf("Generate should not return error: %v", err)
+	}
+	if proofData.Result != ProofSuccess {
+		t.Errorf("Expected ProofSuccess, got %s", proofData.Result.String())
 	}
 }
 
@@ -53,9 +56,12 @@ func TestBRCA1Proof_GenerateWithMissingPosition(t *testing.T) {
 	tmpFile.Close()
 
 	proof := &BRCA1Proof{}
-	err = proof.Generate(tmpFile.Name(), "", "")
-	if err != nil {
-		t.Errorf("Generate should not return error: %v", err)
+	proofData, err := proof.Generate(tmpFile.Name(), "", "")
+	if err == nil {
+		t.Errorf("Generate should return error when position not found")
+	}
+	if proofData.Result != ProofFail {
+		t.Errorf("Expected ProofFail, got %s", proofData.Result.String())
 	}
 }
 
@@ -65,7 +71,7 @@ func TestBRCA1Proof_Verify(t *testing.T) {
 	if err != nil {
 		t.Errorf("Verify should not return error: %v", err)
 	}
-	if !result {
-		t.Errorf("Verify should return true")
+	if result.Result != ProofSuccess {
+		t.Errorf("Expected ProofSuccess, got %s", result.Result.String())
 	}
 }

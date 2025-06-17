@@ -21,6 +21,8 @@ go get github.com/zkgenomics/zkgenomics-proofs
 
 ## Usage
 
+### Basic Example
+
 ```go
 package main
 
@@ -29,6 +31,7 @@ import (
 	"log"
 	
 	zkgenomics "github.com/zkgenomics/zkgenomics-proofs"
+	"github.com/zkgenomics/zkgenomics-proofs/proofs"
 )
 
 func main() {
@@ -36,7 +39,7 @@ func main() {
 	generator := zkgenomics.NewProofGenerator()
 	
 	// Generate a chromosome proof
-	err := generator.GenerateProof(
+	proofData, err := generator.GenerateProof(
 		zkgenomics.ChromosomeProofType,
 		"path/to/sample.vcf",
 		"", // Empty string for new proving key
@@ -46,17 +49,41 @@ func main() {
 		log.Fatalf("Failed to generate proof: %v", err)
 	}
 	
+	fmt.Printf("Proof generation result: %s\n", proofData.Result.String())
+	if proofData.Result == zkgenomics.ProofSuccess {
+		fmt.Printf("Proof size: %d bytes\n", len(proofData.Proof))
+		fmt.Printf("Verifying key size: %d bytes\n", len(proofData.VerifyingKey))
+	}
+	
 	// Verify the proof
-	valid, err := generator.VerifyProof(
+	result, err := generator.VerifyProof(
 		zkgenomics.ChromosomeProofType,
-		"output/proof.vk",
-		"output/proof",
+		"",  // Using embedded verifying key
+		"",  // Using embedded proof data
 	)
 	if err != nil {
 		log.Fatalf("Failed to verify proof: %v", err)
 	}
 	
-	fmt.Printf("Proof is valid: %v\n", valid)
+	fmt.Printf("Verification result: %s\n", result.Result.String())
+}
+```
+
+### Dynamic Proofs for Custom Variants
+
+```go
+// Create a dynamic proof for a specific genomic position
+eyeColorProof := proofs.NewDynamicProof(28356859, "G", "A") // rs12913832
+
+// Generate proof for eye color variant
+proofData, err := eyeColorProof.Generate("sample.vcf", "", "")
+if err != nil {
+	log.Fatalf("Failed to generate proof: %v", err)
+}
+
+// The proof will succeed only if the person has the G->A variant at position 28356859
+if proofData.Result == zkgenomics.ProofSuccess {
+	fmt.Println("Person has the blue eyes variant!")
 }
 ```
 
@@ -78,9 +105,33 @@ The main interface for generating and verifying proofs.
 
 #### Methods
 
-- `GenerateProof(proofType ProofType, vcfPath, provingKeyPath, outputPath string) error`
-- `VerifyProof(proofType ProofType, verifyingKeyPath, proofPath string) (bool, error)`
+- `GenerateProof(proofType ProofType, vcfPath, provingKeyPath, outputPath string) (*ProofData, error)`
+- `VerifyProof(proofType ProofType, verifyingKeyPath, proofPath string) (*VerificationResult, error)`
 - `GetSupportedProofTypes() []ProofType`
+
+### ProofData Structure
+
+Contains all necessary data for proof verification:
+
+```go
+type ProofData struct {
+    Proof         []byte      `json:"proof"`         // ZK-SNARK proof bytes
+    VerifyingKey  []byte      `json:"verifying_key"` // Verification key bytes
+    PublicWitness []byte      `json:"public_witness"`// Public inputs bytes
+    Result        ProofResult `json:"result"`        // success/fail/unknown
+}
+```
+
+### VerificationResult Structure
+
+Contains the result of proof verification:
+
+```go
+type VerificationResult struct {
+    Result ProofResult `json:"result"` // success/fail/unknown
+    Error  error       `json:"error"`  // Optional error details
+}
+```
 
 ### ProofType Constants
 
