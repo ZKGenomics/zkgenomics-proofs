@@ -59,10 +59,19 @@ func genotypeToColor(genotype int) int {
 	}
 }
 
-func (p EyeColorProof) Generate(vcfPath string, provingKeyPath string, outputPath string) error {
-	return nil
+func (p EyeColorProof) Generate(vcfPath string, provingKeyPath string, outputPath string) (*ProofData, error) {
+	// Simulate proof generation for eye color
+	return &ProofData{
+		Proof:         []byte("eye_color_proof_data"),
+		VerifyingKey:  []byte("eye_color_verifying_key"),
+		PublicWitness: []byte("eye_color_public_witness"),
+		Result:        ProofSuccess,
+	}, nil
 }
 
-func (p EyeColorProof) Verify(verifyingKeyPath string, proofPath string) (bool, error) {
-	return true, nil
+func (p EyeColorProof) Verify(verifyingKeyPath string, proofPath string) (*VerificationResult, error) {
+	return &VerificationResult{
+		Result: ProofSuccess,
+		Error:  nil,
+	}, nil
 }

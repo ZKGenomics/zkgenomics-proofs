@@ -42,15 +42,21 @@ func NewDynamicProof(position uint64, reference string, alternate string) *Dynam
 }
 
 // Generate implements the Proof interface for DynamicProof
-func (p *DynamicProof) Generate(vcfPath string, provingKeyPath string, outputPath string) error {
+func (p *DynamicProof) Generate(vcfPath string, provingKeyPath string, outputPath string) (*ProofData, error) {
 	return p.GenerateDynamic(vcfPath, provingKeyPath, outputPath, p.Position, p.Reference, p.Alternate)
 }
 
 // GenerateDynamic implements the DynamicProofGenerator interface
-func (p *DynamicProof) GenerateDynamic(vcfPath string, provingKeyPath string, outputPath string, position uint64, ref string, alt string) error {
+func (p *DynamicProof) GenerateDynamic(vcfPath string, provingKeyPath string, outputPath string, position uint64, ref string, alt string) (*ProofData, error) {
 	genotype, actualRef, actualAlt, err := p.extractGenotypeAtPosition(vcfPath, position, ref, alt)
 	if err != nil {
-		return fmt.Errorf("failed to extract genotype: %w", err)
+		// Return ProofData with Fail result
+		return &ProofData{
+			Proof:         nil,
+			VerifyingKey:  nil,
+			PublicWitness: nil,
+			Result:        ProofFail,
+		}, fmt.Errorf("failed to extract genotype: %w", err)
 	}
 
 	fmt.Printf("Found variant at position %d:\n", position)
@@ -60,25 +66,53 @@ func (p *DynamicProof) GenerateDynamic(vcfPath string, provingKeyPath string, ou
 
 	// Verify that the found variant matches expected reference and alternate
 	if actualRef != ref {
-		return fmt.Errorf("reference mismatch: expected %s, found %s", ref, actualRef)
+		return &ProofData{
+			Proof:         nil,
+			VerifyingKey:  nil,
+			PublicWitness: nil,
+			Result:        ProofFail,
+		}, fmt.Errorf("reference mismatch: expected %s, found %s", ref, actualRef)
 	}
 	if actualAlt != alt {
-		return fmt.Errorf("alternate mismatch: expected %s, found %s", alt, actualAlt)
+		return &ProofData{
+			Proof:         nil,
+			VerifyingKey:  nil,
+			PublicWitness: nil,
+			Result:        ProofFail,
+		}, fmt.Errorf("alternate mismatch: expected %s, found %s", alt, actualAlt)
 	}
 
 	// Here you would implement the actual zk-SNARK proof generation
-	// For now, we'll just simulate the proof generation
+	// For now, we'll simulate successful proof generation
 	fmt.Printf("Generating proof for position %d with genotype %d\n", position, genotype)
 	
-	return nil
+	// Simulate proof data generation
+	proofData := &ProofData{
+		Proof:         []byte(fmt.Sprintf("proof_pos_%d_genotype_%d", position, genotype)),
+		VerifyingKey:  []byte(fmt.Sprintf("vk_pos_%d", position)),
+		PublicWitness: []byte(fmt.Sprintf("witness_pos_%d_ref_%s_alt_%s_genotype_%d", position, ref, alt, genotype)),
+		Result:        ProofSuccess,
+	}
+	
+	return proofData, nil
 }
 
 // Verify implements the Proof interface for DynamicProof
-func (p *DynamicProof) Verify(verifyingKeyPath string, proofPath string) (bool, error) {
+func (p *DynamicProof) Verify(verifyingKeyPath string, proofPath string) (*VerificationResult, error) {
 	// Here you would implement the actual zk-SNARK proof verification
-	// For now, we'll just return true to simulate successful verification
+	// For now, we'll simulate the verification process
 	fmt.Printf("Verifying proof for position %d\n", p.Position)
-	return true, nil
+	
+	// Simulate different verification outcomes based on simple heuristics
+	// In a real implementation, this would involve cryptographic verification
+	
+	// For demonstration, we'll simulate successful verification
+	result := &VerificationResult{
+		Result: ProofSuccess,
+		Error:  nil,
+	}
+	
+	return result, nil
 }
 
 // extractGenotypeAtPosition searches for a specific genomic position in the VCF file

@@ -116,7 +116,47 @@ func TestVerify(t *testing.T) {
 	if err != nil {
 		t.Errorf("Unexpected error during verification: %v", err)
 	}
-	if !result {
-		t.Error("Expected verification to succeed")
+	if result.Result != ProofSuccess {
+		t.Errorf("Expected verification to succeed, got %s", result.Result.String())
+	}
+	if result.Error != nil {
+		t.Errorf("Expected no error in result, got: %v", result.Error)
+	}
+}
+
+func TestProofDataStructure(t *testing.T) {
+	proof := NewDynamicProof(28356859, "G", "A")
+	
+	// Test successful proof generation simulation
+	proofData, err := proof.GenerateDynamic("dummy.vcf", "dummy.key", "dummy.out", 28356859, "G", "A")
+	
+	// Since we don't have a real VCF file, this should fail with ProofFail
+	if err == nil {
+		t.Error("Expected error when VCF file doesn't exist")
+	}
+	if proofData == nil {
+		t.Error("Expected ProofData to be returned even on failure")
+	}
+	if proofData.Result != ProofFail {
+		t.Errorf("Expected ProofFail result, got %s", proofData.Result.String())
+	}
+}
+
+func TestProofResultString(t *testing.T) {
+	tests := []struct {
+		result   ProofResult
+		expected string
+	}{
+		{ProofSuccess, "success"},
+		{ProofFail, "fail"},
+		{ProofUnknown, "unknown"},
+		{ProofResult(999), "unknown"}, // Invalid value should return "unknown"
+	}
+	
+	for _, test := range tests {
+		result := test.result.String()
+		if result != test.expected {
+			t.Errorf("For ProofResult %d, expected %s, got %s", int(test.result), test.expected, result)
+		}
 	}
 }
