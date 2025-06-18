@@ -1,6 +1,7 @@
 package zkgenomics
 
 import (
+	"fmt"
 	"github.com/zkgenomics/zkgenomics-proofs/proofs"
 	"github.com/zkgenomics/zkgenomics-proofs/traits"
 )
@@ -73,6 +74,48 @@ func (pg *ProofGenerator) VerifyProof(proofType ProofType, verifyingKeyPath, pro
 	}
 
 	return proof.Verify(verifyingKeyPath, proofPath)
+}
+
+// VerifyProofData verifies a proof directly from ProofData without file operations
+func (pg *ProofGenerator) VerifyProofData(proofType ProofType, proofData *ProofData) (*VerificationResult, error) {
+	var proof proofs.Proof
+
+	switch proofType {
+	case ChromosomeProofType:
+		proof = &proofs.ChromosomeProof{}
+	case EyeColorProofType:
+		proof = &proofs.EyeColorProof{}
+	case BRCA1ProofType:
+		proof = &proofs.BRCA1Proof{}
+	case HERC2ProofType:
+		proof = &proofs.HERC2Proof{}
+	default:
+		return nil, &UnsupportedProofTypeError{Type: string(proofType)}
+	}
+
+	return proof.VerifyProofData(proofData)
+}
+
+// VerifyAnyProofData attempts to verify ProofData by trying all supported proof types
+// This is useful when the proof type is unknown or not stored with the proof
+func (pg *ProofGenerator) VerifyAnyProofData(proofData *ProofData) (ProofType, *VerificationResult, error) {
+	supportedTypes := pg.GetSupportedProofTypes()
+	
+	for _, proofType := range supportedTypes {
+		result, err := pg.VerifyProofData(proofType, proofData)
+		if err != nil {
+			continue // Try next proof type
+		}
+		
+		if result.Result == ProofSuccess {
+			return proofType, result, nil
+		}
+	}
+	
+	return "", &VerificationResult{
+		Result: ProofFail,
+		Error:  fmt.Errorf("proof verification failed for all supported types"),
+	}, nil
 }
 
 // GetSupportedProofTypes returns a list of supported proof types

@@ -3,8 +3,12 @@ package proofs
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/brentp/vcfgo"
+	"github.com/consensys/gnark-crypto/ecc"
+	"github.com/consensys/gnark/backend/groth16"
+	"github.com/consensys/gnark/backend/witness"
 	"github.com/consensys/gnark/frontend"
 )
 
@@ -70,6 +74,71 @@ func (p EyeColorProof) Generate(vcfPath string, provingKeyPath string, outputPat
 }
 
 func (p EyeColorProof) Verify(verifyingKeyPath string, proofPath string) (*VerificationResult, error) {
+	return &VerificationResult{
+		Result: ProofSuccess,
+		Error:  nil,
+	}, nil
+}
+
+func (p EyeColorProof) VerifyProofData(proofData *ProofData) (*VerificationResult, error) {
+	// Verify eye color proof directly from ProofData using gnark
+	
+	if len(proofData.Proof) == 0 || len(proofData.VerifyingKey) == 0 {
+		return &VerificationResult{
+			Result: ProofFail,
+			Error:  fmt.Errorf("invalid proof data: missing proof or verifying key"),
+		}, nil
+	}
+	
+	fmt.Println("Verifying eye color proof from ProofData...")
+	
+	// Deserialize the verifying key
+	vk := groth16.NewVerifyingKey(ecc.BN254)
+	_, err := vk.ReadFrom(strings.NewReader(string(proofData.VerifyingKey)))
+	if err != nil {
+		return &VerificationResult{
+			Result: ProofFail,
+			Error:  fmt.Errorf("failed to deserialize verifying key: %w", err),
+		}, nil
+	}
+	
+	// Deserialize the proof
+	proof := groth16.NewProof(ecc.BN254)
+	_, err = proof.ReadFrom(strings.NewReader(string(proofData.Proof)))
+	if err != nil {
+		return &VerificationResult{
+			Result: ProofFail,
+			Error:  fmt.Errorf("failed to deserialize proof: %w", err),
+		}, nil
+	}
+	
+	// Deserialize the public witness
+	publicWitness, err := witness.New(ecc.BN254.ScalarField())
+	if err != nil {
+		return &VerificationResult{
+			Result: ProofFail,
+			Error:  fmt.Errorf("failed to create witness: %w", err),
+		}, nil
+	}
+	err = publicWitness.UnmarshalBinary(proofData.PublicWitness)
+	if err != nil {
+		return &VerificationResult{
+			Result: ProofFail,
+			Error:  fmt.Errorf("failed to deserialize public witness: %w", err),
+		}, nil
+	}
+	
+	// Perform gnark verification
+	err = groth16.Verify(proof, vk, publicWitness)
+	if err != nil {
+		return &VerificationResult{
+			Result: ProofFail,
+			Error:  fmt.Errorf("proof verification failed: %w", err),
+		}, nil
+	}
+	
+	fmt.Println("✅ Eye color proof successfully verified!")
+	
 	return &VerificationResult{
 		Result: ProofSuccess,
 		Error:  nil,

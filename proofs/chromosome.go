@@ -9,6 +9,7 @@ import (
 	"github.com/brentp/vcfgo"
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark/backend/groth16"
+	"github.com/consensys/gnark/backend/witness"
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/frontend/cs/r1cs"
 )
@@ -260,6 +261,71 @@ func (*ChromosomeProof) Verify(verifyingKeyPath string, proofPath string) (*Veri
 	// For chromosome proof, we now expect ProofData to be provided directly
 	// This is a simplified implementation that always returns success for demonstration
 	fmt.Println("Verifying chromosome proof...")
+	fmt.Println("✅ Chromosome proof successfully verified!")
+	
+	return &VerificationResult{
+		Result: ProofSuccess,
+		Error:  nil,
+	}, nil
+}
+
+func (*ChromosomeProof) VerifyProofData(proofData *ProofData) (*VerificationResult, error) {
+	// Verify chromosome proof directly from ProofData using gnark
+	
+	if len(proofData.Proof) == 0 || len(proofData.VerifyingKey) == 0 {
+		return &VerificationResult{
+			Result: ProofFail,
+			Error:  fmt.Errorf("invalid proof data: missing proof or verifying key"),
+		}, nil
+	}
+	
+	fmt.Println("Verifying chromosome proof from ProofData...")
+	
+	// Deserialize the verifying key
+	vk := groth16.NewVerifyingKey(ecc.BN254)
+	_, err := vk.ReadFrom(strings.NewReader(string(proofData.VerifyingKey)))
+	if err != nil {
+		return &VerificationResult{
+			Result: ProofFail,
+			Error:  fmt.Errorf("failed to deserialize verifying key: %w", err),
+		}, nil
+	}
+	
+	// Deserialize the proof
+	proof := groth16.NewProof(ecc.BN254)
+	_, err = proof.ReadFrom(strings.NewReader(string(proofData.Proof)))
+	if err != nil {
+		return &VerificationResult{
+			Result: ProofFail,
+			Error:  fmt.Errorf("failed to deserialize proof: %w", err),
+		}, nil
+	}
+	
+	// Deserialize the public witness
+	publicWitness, err := witness.New(ecc.BN254.ScalarField())
+	if err != nil {
+		return &VerificationResult{
+			Result: ProofFail,
+			Error:  fmt.Errorf("failed to create witness: %w", err),
+		}, nil
+	}
+	err = publicWitness.UnmarshalBinary(proofData.PublicWitness)
+	if err != nil {
+		return &VerificationResult{
+			Result: ProofFail,
+			Error:  fmt.Errorf("failed to deserialize public witness: %w", err),
+		}, nil
+	}
+	
+	// Perform gnark verification
+	err = groth16.Verify(proof, vk, publicWitness)
+	if err != nil {
+		return &VerificationResult{
+			Result: ProofFail,
+			Error:  fmt.Errorf("proof verification failed: %w", err),
+		}, nil
+	}
+	
 	fmt.Println("✅ Chromosome proof successfully verified!")
 	
 	return &VerificationResult{

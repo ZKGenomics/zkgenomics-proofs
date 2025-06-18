@@ -40,6 +40,7 @@ type VerificationResult struct {
 type Proof interface {
 	Generate(vcfPath string, provingKeyPath string, outputPath string) (*ProofData, error)
 	Verify(verifyingKeyPath string, proofPath string) (*VerificationResult, error)
+	VerifyProofData(proofData *ProofData) (*VerificationResult, error)
 }
 
 // DynamicProofGenerator interface for proofs that can be configured with specific genomic parameters
