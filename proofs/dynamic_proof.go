@@ -11,7 +11,24 @@ import (
 	"github.com/consensys/gnark/backend/groth16"
 	"github.com/consensys/gnark/backend/witness"
 	"github.com/consensys/gnark/frontend"
+	"github.com/consensys/gnark/frontend/cs/r1cs"
 )
+
+// stringToInt converts nucleotide strings to integers for circuit use
+func stringToInt(s string) int {
+	switch strings.ToUpper(s) {
+	case "A":
+		return 0
+	case "T":
+		return 1
+	case "G":
+		return 2
+	case "C":
+		return 3
+	default:
+		return 0 // Default to A
+	}
+}
 
 type DynamicCircuit struct {
 	ClaimedRef       frontend.Variable `gnark:",public"`
@@ -85,19 +102,126 @@ func (p *DynamicProof) GenerateDynamic(vcfPath string, provingKeyPath string, ou
 		}, fmt.Errorf("alternate mismatch: expected %s, found %s", alt, actualAlt)
 	}
 
-	// Here you would implement the actual zk-SNARK proof generation
-	// For now, we'll simulate successful proof generation
+	// Generate actual zk-SNARK proof using gnark
 	fmt.Printf("Generating proof for position %d with genotype %d\n", position, genotype)
 	
-	// Simulate proof data generation
-	proofData := &ProofData{
-		Proof:         []byte(fmt.Sprintf("proof_pos_%d_genotype_%d", position, genotype)),
-		VerifyingKey:  []byte(fmt.Sprintf("vk_pos_%d", position)),
-		PublicWitness: []byte(fmt.Sprintf("witness_pos_%d_ref_%s_alt_%s_genotype_%d", position, ref, alt, genotype)),
-		Result:        ProofSuccess,
-	}
+	// Convert string values to integers for circuit
+	refInt := stringToInt(actualRef)
+	altInt := stringToInt(actualAlt)
 	
-	return proofData, nil
+	// Compile the circuit
+	fmt.Println("Compiling dynamic circuit...")
+	var circuit DynamicCircuit
+	cs, err := frontend.Compile(ecc.BN254.ScalarField(), r1cs.NewBuilder, &circuit)
+	if err != nil {
+		return &ProofData{
+			Proof:         nil,
+			VerifyingKey:  nil,
+			PublicWitness: nil,
+			Result:        ProofFail,
+		}, fmt.Errorf("circuit compilation error: %w", err)
+	}
+
+	// Setup proving system
+	fmt.Println("Setting up proving system...")
+	pk, vk, err := groth16.Setup(cs)
+	if err != nil {
+		return &ProofData{
+			Proof:         nil,
+			VerifyingKey:  nil,
+			PublicWitness: nil,
+			Result:        ProofFail,
+		}, fmt.Errorf("setup error: %w", err)
+	}
+
+	// Create witness
+	fmt.Println("Creating witness...")
+	witness := DynamicCircuit{
+		ClaimedRef:      refInt,
+		ClaimedAlt:      altInt,
+		ClaimedGenotype: genotype,
+		ActualRef:       refInt,
+		ActualAlt:       altInt,
+		ActualGenotype:  genotype,
+	}
+
+	w, err := frontend.NewWitness(&witness, ecc.BN254.ScalarField())
+	if err != nil {
+		return &ProofData{
+			Proof:         nil,
+			VerifyingKey:  nil,
+			PublicWitness: nil,
+			Result:        ProofFail,
+		}, fmt.Errorf("witness creation error: %w", err)
+	}
+
+	publicWitness, err := w.Public()
+	if err != nil {
+		return &ProofData{
+			Proof:         nil,
+			VerifyingKey:  nil,
+			PublicWitness: nil,
+			Result:        ProofFail,
+		}, fmt.Errorf("public witness error: %w", err)
+	}
+
+	// Generate proof
+	fmt.Println("Generating cryptographic proof...")
+	proof, err := groth16.Prove(cs, pk, w)
+	if err != nil {
+		return &ProofData{
+			Proof:         nil,
+			VerifyingKey:  nil,
+			PublicWitness: nil,
+			Result:        ProofFail,
+		}, fmt.Errorf("proving error: %w", err)
+	}
+
+	// Serialize proof to bytes
+	proofBytes := make([]byte, 0)
+	proofWriter := &bytesWriter{data: &proofBytes}
+	_, err = proof.WriteTo(proofWriter)
+	if err != nil {
+		return &ProofData{
+			Proof:         nil,
+			VerifyingKey:  nil,
+			PublicWitness: nil,
+			Result:        ProofFail,
+		}, fmt.Errorf("serializing proof: %w", err)
+	}
+
+	// Serialize verifying key to bytes
+	vkBytes := make([]byte, 0)
+	vkWriter := &bytesWriter{data: &vkBytes}
+	_, err = vk.WriteTo(vkWriter)
+	if err != nil {
+		return &ProofData{
+			Proof:         nil,
+			VerifyingKey:  nil,
+			PublicWitness: nil,
+			Result:        ProofFail,
+		}, fmt.Errorf("serializing verifying key: %w", err)
+	}
+
+	// Serialize public witness to bytes
+	publicWitnessData, err := publicWitness.MarshalBinary()
+	if err != nil {
+		return &ProofData{
+			Proof:         nil,
+			VerifyingKey:  nil,
+			PublicWitness: nil,
+			Result:        ProofFail,
+		}, fmt.Errorf("serializing public witness: %w", err)
+	}
+
+	fmt.Printf("✅ Dynamic proof successfully generated for position %d!\n", position)
+
+	return &ProofData{
+		Proof:         proofBytes,
+		VerifyingKey:  vkBytes,
+		PublicWitness: publicWitnessData,
+		Result:        ProofSuccess,
+	}, nil
 }
 
 // Verify implements the Proof interface for DynamicProof

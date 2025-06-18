@@ -15,6 +15,7 @@ func TestProofGeneratorIntegration(t *testing.T) {
 		EyeColorProofType,
 		BRCA1ProofType,
 		HERC2ProofType,
+		DynamicProofType,
 	}
 	
 	if len(supportedTypes) != len(expectedTypes) {
