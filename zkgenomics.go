@@ -26,6 +26,7 @@ const (
 	EyeColorProofType   ProofType = "eye_color"
 	BRCA1ProofType      ProofType = "brca1"
 	HERC2ProofType      ProofType = "herc2"
+	DynamicProofType    ProofType = "dynamic"
 )
 
 // ProofGenerator provides a unified interface for generating genomic proofs
@@ -49,6 +50,8 @@ func (pg *ProofGenerator) GenerateProof(proofType ProofType, vcfPath, provingKey
 		proof = &proofs.BRCA1Proof{}
 	case HERC2ProofType:
 		proof = &proofs.HERC2Proof{}
+	case DynamicProofType:
+		proof = &proofs.DynamicProof{}
 	default:
 		return nil, &UnsupportedProofTypeError{Type: string(proofType)}
 	}
@@ -69,6 +72,8 @@ func (pg *ProofGenerator) VerifyProof(proofType ProofType, verifyingKeyPath, pro
 		proof = &proofs.BRCA1Proof{}
 	case HERC2ProofType:
 		proof = &proofs.HERC2Proof{}
+	case DynamicProofType:
+		proof = &proofs.DynamicProof{}
 	default:
 		return nil, &UnsupportedProofTypeError{Type: string(proofType)}
 	}
@@ -89,6 +94,8 @@ func (pg *ProofGenerator) VerifyProofData(proofType ProofType, proofData *ProofD
 		proof = &proofs.BRCA1Proof{}
 	case HERC2ProofType:
 		proof = &proofs.HERC2Proof{}
+	case DynamicProofType:
+		proof = &proofs.DynamicProof{}
 	default:
 		return nil, &UnsupportedProofTypeError{Type: string(proofType)}
 	}
@@ -125,6 +132,7 @@ func (pg *ProofGenerator) GetSupportedProofTypes() []ProofType {
 		EyeColorProofType,
 		BRCA1ProofType,
 		HERC2ProofType,
+		DynamicProofType,
 	}
 }
 
